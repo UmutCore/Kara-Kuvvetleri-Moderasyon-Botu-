@@ -128,12 +128,17 @@ async function sendDenetimDM(member) {
   try {
     const dmChannel = await member.user.createDM();
     await dmChannel.send({
-      content: `🔔 **BTF Resmi Denetim Çağrısı** 🔔\n\n` +
-               `Merhaba ${member.user.username}!\n` +
-               `Roblox sunucumuzda denetim başladı, branşını temsil etme zamanı!\n\n` +
-               `🌍 Oyun Linki: ${process.env.ROBLOX_LINK || 'https://www.roblox.com/games/'}\n` +
-               `⏰ Acil katılım bekleniyor!\n\n` +
-               `Saygılarımızla,\nBTF Yönetim`
+      content: `🔔 **ŞANLI KARA KUVVETLER KOMUTANLIĞI PERSONELLERİNE,** \n\n` +
+              `Merhaba ${member.user.username},\n` +
+              `${guild.name} Aktiflik denetiminde iyi bir sonuç elde edebilmemiz için bütün personellerimizi denetim saatinde oyuna bekliyoruz. \n\n` +
+              `🌍 Katılmanız gereken oyun: ${process.env.ROBLOX_LINK}\n` +
+              `**Yer:** Branş Denetim Alanı\n` +
+              `**Saat: 20.00** (19.20'de toplanacağız)\n` +
+              `**Tür:** Aktiflik Denetimi\n` +
+              `**Ödül:** Gelenlere +1 terfi.\n\n` + 
+              `⏰ Acil katılım gereklidir!\n\n` +
+              `Saygılarımızla,\n${interaction.user.username}`
+            
     });
     return true;
   } catch (error) {
