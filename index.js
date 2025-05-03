@@ -41,10 +41,19 @@ client.on('interactionCreate', async (interaction) => {
       for (const [_, member] of targets) {
         try {
           await member.send(
-            `🔔 **${process.env.BRANS_ADI} Denetim Çağrısı**\n` +
-            `Lütfen oyuna katılın: ${process.env.ROBLOX_LINK}\n` +
-            `**Sorumlu:** ${interaction.user.tag}`
-          );
+          `🔔 **ŞANLI KARA KUVVETLER KOMUTANLIĞI PERSONELLERİNE,** \n\n` +
+              `Merhaba ${member.user.username},\n` +
+              `${guild.name} Aktiflik denetiminde iyi bir sonuç elde edebilmemiz için bütün personellerimizi denetim saatinde oyuna bekliyoruz. \n\n` +
+              `🌍 Katılmanız gereken oyun: ${process.env.ROBLOX_LINK}\n` +
+              `**Yer:** Branş Denetim Alanı\n` +
+              `**Saat: 20.00** (19.20'de toplanacağız)\n` +
+              `**Tür:** Aktiflik Denetimi\n` +
+              `**Ödül:** Gelenlere +1 terfi.\n\n` + 
+              `⏰ Acil katılım gereklidir!\n\n` +
+              `Saygılarımızla,\n${interaction.user.username}`
+            );
+
+            
           success++;
           await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit koruma
         } catch (err) {
