@@ -2,154 +2,84 @@ const { Client, GatewayIntentBits, ActivityType, PermissionFlagsBits } = require
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Bot istatistikleri
-let stats = {
-  totalCalls: 0,
-  lastCall: null
-};
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
   ],
-  partials: ['USER', 'CHANNEL'] // DM'ler için gerekli
+  partials: ['USER', 'CHANNEL']
 });
+
+// Ayarlar
+const denetimciRoleId = process.env.DENETIMCI_ROLE_ID; // Komutu kullanacak rol
+const hedefRolId = process.env.HEDEF_ROL_ID; // DM gidecek üyelerin rolü
+const COOLDOWN_TIME = 5 * 60 * 1000; // 5 dakika cooldown
 
 client.once('ready', () => {
-  console.log(`✅ ${client.user.tag} aktif edildi!`);
-  updateActivity();
+  console.log(`✅ ${client.user.tag} aktif!`);
+  client.user.setActivity('Özel Denetim Modu', { type: ActivityType.Watching });
 });
-
-// Aktivite durumunu güncelle
-function updateActivity() {
-  const activities = [
-    { name: `${stats.totalCalls} denetim çağrısı`, type: ActivityType.Watching },
-    { name: 'BTF Denetimleri', type: ActivityType.Competing }
-  ];
-  client.user.setActivity(activities[Math.floor(Math.random() * activities.length)]);
-  
-  // Her 10 dakikada bir güncelle
-  setTimeout(updateActivity, 600000);
-}
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // Sadece yetkililer komut kullanabilsin
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({
-      content: '❌ Bu komutu kullanmak için denetim görevlisi yetkilerine sahip olmalısınız!',
-      ephemeral: true
-    });
-  }
-
+  // DENETİM KOMUTU
   if (interaction.commandName === 'denetim') {
-    await handleDenetimCommand(interaction);
+    // 1. Yetki Kontrolü
+    if (!interaction.member.roles.cache.has(denetimciRoleId)) {
+      return interaction.reply({
+        content: `⛔ Sadece <@&${denetimciRoleId}> rolündeki yetkililer bu komutu kullanabilir!`,
+        ephemeral: true
+      });
+    }
+
+    // 2. Denetim Başlatma
+    try {
+      await interaction.deferReply({ ephemeral: true });
+      
+      const guild = interaction.guild;
+      await guild.members.fetch(); // Tüm üyeleri çek
+
+      // Sadece hedef role sahip üyeleri filtrele
+      const targetMembers = guild.members.cache.filter(m => 
+        m.roles.cache.has(hedefRolId) && !m.user.bot
+      );
+
+      if (targetMembers.size === 0) {
+        return interaction.editReply('❌ Hedef rolde hiç üye bulunamadı!');
+      }
+
+      await interaction.editReply(`📤 ${targetMembers.size} üyeye DM gönderiliyor...`);
+
+      // DM Gönderme İşlemi
+      let successCount = 0;
+      for (const [_, member] of targetMembers) {
+        try {
+          const dm = await member.user.createDM();
+          await dm.send(
+            
+          successCount++;
+          
+          // Rate Limit koruması (1 saniye bekle)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`${member.user.tag} kişisine DM gönderilemedi:`, error.message);
+        }
+      }
+
+      // Sonuç raporu
+      await interaction.editReply(
+        `🎉 **Denetim tamamlandı!**\n` +
+        `✅ ${successCount}/${targetMembers.size} üyeye ulaşıldı\n` +
+        `📌 Hedef Rol: <@&${hedefRolId}>`
+      );
+
+    } catch (error) {
+      console.error('Denetim hatası:', error);
+      await interaction.editReply('❌ Denetim sırasında kritik hata!');
+    }
   }
 });
 
-async function handleDenetimCommand(interaction) {
-  // Kullanıcıyı bilgilendir
-  await interaction.deferReply({ ephemeral: true });
-  
-  const guild = interaction.guild;
-  let successCount = 0;
-  let failCount = 0;
-  const failedUsers = [];
-
-  try {
-    // Sunucu üyelerini getir
-    await guild.members.fetch();
-    const members = guild.members.cache.filter(m => !m.user.bot && !m.user.system);
-
-    // İlerleme durumu için mesaj
-    const progressMsg = await interaction.followUp({
-      content: `⏳ Denetim çağrıları gönderiliyor... (0/${members.size})`,
-      ephemeral: true
-    });
-
-    // Her üye için işlem
-    let processed = 0;
-    for (const [_, member] of members) {
-      try {
-        // DM gönderme işlemi
-        await sendDenetimDM(member);
-        successCount++;
-      } catch (error) {
-        console.error(`[HATA] ${member.user.tag}:`, error.message);
-        failCount++;
-        failedUsers.push(member.user.tag);
-      }
-      
-      processed++;
-      // Her 5 gönderimde bir durum güncelle
-      if (processed % 5 === 0 || processed === members.size) {
-        await progressMsg.edit({
-          content: `⏳ Denetim çağrıları gönderiliyor... (${processed}/${members.size})\n` +
-                   `✅ Başarılı: ${successCount} | ❌ Başarısız: ${failCount}`
-        });
-      }
-      
-      // Rate limit koruması
-      await delay(1500);
-    }
-
-    // İstatistikleri güncelle
-    stats.totalCalls += successCount;
-    stats.lastCall = new Date();
-
-    // Sonuç raporu
-    let resultMessage = `🎉 **Denetim çağrıları tamamlandı!**\n` +
-                        `✅ Başarılı: ${successCount} kişi\n` +
-                        `❌ Başarısız: ${failCount} kişi`;
-    
-    if (failedUsers.length > 0) {
-      resultMessage += `\n\n**DM gönderilemeyenler:**\n${failedUsers.slice(0, 10).join('\n')}`;
-      if (failedUsers.length > 10) resultMessage += `\n...ve ${failedUsers.length - 10} kişi daha`;
-    }
-
-    await interaction.followUp({
-      content: resultMessage,
-      ephemeral: true
-    });
-
-  } catch (error) {
-    console.error('[CRITICAL]', error);
-    await interaction.followUp({
-      content: '❌ Denetim çağrıları gönderilirken kritik bir hata oluştu!',
-      ephemeral: true
-    });
-  }
-}
-
-async function sendDenetimDM(member) {
-  try {
-    const dmChannel = await member.user.createDM();
-    await dmChannel.send({
-      content: `🔔 **ŞANLI KARA KUVVETLER KOMUTANLIĞI PERSONELLERİNE,** \n\n` +
-              `Merhaba ${member.user.username},\n` +
-              `${guild.name} Aktiflik denetiminde iyi bir sonuç elde edebilmemiz için bütün personellerimizi denetim saatinde oyuna bekliyoruz. \n\n` +
-              `🌍 Katılmanız gereken oyun: ${process.env.ROBLOX_LINK}\n` +
-              `**Yer:** Branş Denetim Alanı\n` +
-              `**Saat: 20.00** (19.20'de toplanacağız)\n` +
-              `**Tür:** Aktiflik Denetimi\n` +
-              `**Ödül:** Gelenlere +1 terfi.\n\n` + 
-              `⏰ Acil katılım gereklidir!\n\n` +
-              `Saygılarımızla,\n${interaction.user.username}`
-            
-    });
-    return true;
-  } catch (error) {
-    throw error;
-  }
-}
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-client.login(process.env.DISCORD_TOKEN)
-  .then(() => console.log('🔑 Bot giriş yaptı!'))
-  .catch(err => console.error('❌ Giriş hatası:', err));
+client.login(process.env.DISCORD_TOKEN);
