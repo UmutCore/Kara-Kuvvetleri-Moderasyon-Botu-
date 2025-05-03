@@ -58,7 +58,18 @@ client.on('interactionCreate', async (interaction) => {
         try {
           const dm = await member.user.createDM();
           await dm.send(
-            
+            `🔔 **ŞANLI KARA KUVVETLER KOMUTANLIĞI PERSONELLERİNE,** \n\n` +
+              `Merhaba ${member.user.username},\n` +
+              `${guild.name} Aktiflik denetiminde iyi bir sonuç elde edebilmemiz için bütün personellerimizi denetim saatinde oyuna bekliyoruz. \n\n` +
+              `🌍 Katılmanız gereken oyun: ${process.env.ROBLOX_LINK}\n` +
+              `**Yer:** Branş Denetim Alanı\n` +
+              `**Saat: 20.00** (19.20'de toplanacağız)\n` +
+              `**Tür:** Aktiflik Denetimi\n` +
+              `**Ödül:** Gelenlere +1 terfi.\n\n` + 
+              `⏰ Acil katılım gereklidir!\n\n` +
+              `Saygılarımızla,\n${interaction.user.username}`
+            );
+      
           successCount++;
           
           // Rate Limit koruması (1 saniye bekle)
